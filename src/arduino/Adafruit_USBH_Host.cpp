@@ -211,11 +211,14 @@ void tuh_max3421_spi_cs_api(uint8_t rhport, bool active) {
   SPIClass *spi = host->_spi;
 
   if (active) {
-    // MAX3421e max clock is 26MHz
-    // Depending on mcu ports, it may need to be clipped down
+    // MAX3421e max clock is 26MHz. SAMD SERCOM clocks are quantized by the
+    // baud generator, so request values that stay within each port's limit.
 #ifdef ARDUINO_ARCH_SAMD
-    // SAMD 21/51 can only work reliably at 12MHz
+#if TU_CHECK_MCU(OPT_MCU_SAMD51, OPT_MCU_SAME5X)
+    uint32_t const max_clock = 25000000ul;
+#else
     uint32_t const max_clock = 12000000ul;
+#endif
 #else
     uint32_t const max_clock = 26000000ul;
 #endif
