@@ -31,7 +31,7 @@
 
 #include "host/hcd.h"
 #include "sam.h"
-#include "same5x_usb_compat.h"
+#include "same5x_usb.h"
 
 /*------------------------------------------------------------------*/
 /* MACRO TYPEDEF CONSTANT ENUM

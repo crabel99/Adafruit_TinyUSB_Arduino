@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef _SAME5X_USB_COMPAT_H_
-#define _SAME5X_USB_COMPAT_H_
+#ifndef _SAME5X_USB_H_
+#define _SAME5X_USB_H_
 
 #if defined(__GNUC__)
 #pragma GCC system_header
