@@ -116,17 +116,25 @@ void tud_cdc_n_get_line_coding(uint8_t itf, cdc_line_coding_t* coding);
 // Set special character that will trigger tud_cdc_rx_wanted_cb() callback on receiving
 void tud_cdc_n_set_wanted_char(uint8_t itf, char wanted);
 
-// Select direct endpoint transfers for this CDC interface. This must be set
-// before the interface is opened by enumeration. Direct mode bypasses the CDC
+// Select direct endpoint transfers for this CDC interface. This task-context
+// API must be called before the interface is opened by enumeration and must not
+// race another API call for the same interface. Direct mode bypasses the CDC
 // FIFOs: the caller-owned buffer is passed unchanged to the device controller
-// and must remain valid until its completion callback or a device reset.
+// and must remain valid until its completion callback or a device reset. While
+// direct mode is enabled, FIFO read/write/status APIs fail and return their
+// normal failure value (zero or false); that result does not mean FIFO state.
 bool tud_cdc_n_set_direct_mode(uint8_t itf, bool enabled);
 
 // Submit one caller-owned fixed container directly to the CDC bulk endpoint.
 // FIFO APIs and direct APIs are mutually exclusive on a direct-mode interface.
-// Only one transfer in each direction may be active at a time.
-bool tud_cdc_n_direct_write(uint8_t itf, const void* buffer, uint16_t length);
-bool tud_cdc_n_direct_read(uint8_t itf, void* buffer, uint16_t length);
+// These are task-context APIs and must not race another API call for the same
+// interface. Only one transfer in each direction may be active at a time.
+// Lengths greater than UINT16_MAX are rejected because the device endpoint
+// transfer API uses a 16-bit transfer length. A false return means no callback
+// will occur. If endpoint submission fails after a successful claim,
+// usbd_edpt_xfer() releases the claim before returning false.
+bool tud_cdc_n_direct_write(uint8_t itf, const void* buffer, uint32_t length);
+bool tud_cdc_n_direct_read(uint8_t itf, void* buffer, uint32_t length);
 
 // Get the number of bytes available for reading
 uint32_t tud_cdc_n_available(uint8_t itf);
@@ -238,11 +246,11 @@ TU_ATTR_ALWAYS_INLINE static inline bool tud_cdc_set_direct_mode(bool enabled) {
   return tud_cdc_n_set_direct_mode(0, enabled);
 }
 
-TU_ATTR_ALWAYS_INLINE static inline bool tud_cdc_direct_write(const void* buffer, uint16_t length) {
+TU_ATTR_ALWAYS_INLINE static inline bool tud_cdc_direct_write(const void* buffer, uint32_t length) {
   return tud_cdc_n_direct_write(0, buffer, length);
 }
 
-TU_ATTR_ALWAYS_INLINE static inline bool tud_cdc_direct_read(void* buffer, uint16_t length) {
+TU_ATTR_ALWAYS_INLINE static inline bool tud_cdc_direct_read(void* buffer, uint32_t length) {
   return tud_cdc_n_direct_read(0, buffer, length);
 }
 

@@ -215,18 +215,21 @@ bool tud_cdc_n_set_direct_mode(uint8_t itf, bool enabled) {
   return true;
 }
 
-bool tud_cdc_n_direct_write(uint8_t itf, const void* buffer, uint16_t length) {
+bool tud_cdc_n_direct_write(uint8_t itf, const void* buffer, uint32_t length) {
   TU_VERIFY(itf < CFG_TUD_CDC);
   cdcd_interface_t* p_cdc = &_cdcd_itf[itf];
   TU_VERIFY(p_cdc->direct_mode && tud_ready());
   TU_VERIFY(tu_edpt_stream_is_opened(&p_cdc->tx_stream));
   TU_VERIFY(buffer != NULL || length == 0);
+  TU_VERIFY(length <= UINT16_MAX);
   TU_VERIFY(!p_cdc->direct_tx_active);
   TU_VERIFY(usbd_edpt_claim(p_cdc->rhport, p_cdc->tx_stream.ep_addr));
 
   p_cdc->direct_tx_active = true;
   p_cdc->direct_tx_buffer = buffer;
-  if (!usbd_edpt_xfer(p_cdc->rhport, p_cdc->tx_stream.ep_addr, (uint8_t*)(uintptr_t)buffer, length, false)) {
+  if (!usbd_edpt_xfer(p_cdc->rhport, p_cdc->tx_stream.ep_addr, (uint8_t*)(uintptr_t)buffer,
+                      (uint16_t) length, false)) {
+    // usbd_edpt_xfer() clears BUSY and CLAIMED when the DCD rejects submission.
     p_cdc->direct_tx_active = false;
     p_cdc->direct_tx_buffer = NULL;
     return false;
@@ -234,18 +237,20 @@ bool tud_cdc_n_direct_write(uint8_t itf, const void* buffer, uint16_t length) {
   return true;
 }
 
-bool tud_cdc_n_direct_read(uint8_t itf, void* buffer, uint16_t length) {
+bool tud_cdc_n_direct_read(uint8_t itf, void* buffer, uint32_t length) {
   TU_VERIFY(itf < CFG_TUD_CDC);
   cdcd_interface_t* p_cdc = &_cdcd_itf[itf];
   TU_VERIFY(p_cdc->direct_mode && tud_ready());
   TU_VERIFY(tu_edpt_stream_is_opened(&p_cdc->rx_stream));
   TU_VERIFY(buffer != NULL && length > 0);
+  TU_VERIFY(length <= UINT16_MAX);
   TU_VERIFY(!p_cdc->direct_rx_active);
   TU_VERIFY(usbd_edpt_claim(p_cdc->rhport, p_cdc->rx_stream.ep_addr));
 
   p_cdc->direct_rx_active = true;
   p_cdc->direct_rx_buffer = buffer;
-  if (!usbd_edpt_xfer(p_cdc->rhport, p_cdc->rx_stream.ep_addr, buffer, length, false)) {
+  if (!usbd_edpt_xfer(p_cdc->rhport, p_cdc->rx_stream.ep_addr, buffer, (uint16_t) length, false)) {
+    // usbd_edpt_xfer() clears BUSY and CLAIMED when the DCD rejects submission.
     p_cdc->direct_rx_active = false;
     p_cdc->direct_rx_buffer = NULL;
     return false;
