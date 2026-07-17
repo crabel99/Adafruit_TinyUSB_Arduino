@@ -37,15 +37,23 @@
 //--------------------------------------------------------------------+
 extern "C" {
 
-#if CFG_TUSB_MCU == OPT_MCU_SAMD51 || CFG_TUSB_MCU == OPT_MCU_SAME5X
+#if CFG_TUSB_MCU == OPT_MCU_SAMD51
 
-// SAMD51
+// SAMD51/SAME51
 void USB_0_Handler(void) { tud_int_handler(0); }
 void USB_1_Handler(void) { tud_int_handler(0); }
 void USB_2_Handler(void) { tud_int_handler(0); }
 void USB_3_Handler(void) { tud_int_handler(0); }
 
-#elif CFG_TUSB_MCU == OPT_MCU_SAMD21
+#elif CFG_TUSB_MCU == OPT_MCU_SAME5X
+
+// SAME53/SAME54
+void USB_OTHER_Handler(void) { tud_int_handler(0); }
+void USB_SOF_HSOF_Handler(void) { tud_int_handler(0); }
+void USB_TRCPT0_Handler(void) { tud_int_handler(0); }
+void USB_TRCPT1_Handler(void) { tud_int_handler(0); }
+
+#else
 
 // SAMD21
 void USB_Handler(void) { tud_int_handler(0); }
@@ -61,7 +69,7 @@ void TinyUSB_Port_InitDevice(uint8_t rhport) {
   (void)rhport;
 
   /* Enable USB clock */
-#if defined(__SAMD51__)
+#if defined(__SAMD51__) || defined(__SAME51__)
   MCLK->APBBMASK.reg |= MCLK_APBBMASK_USB;
   MCLK->AHBMASK.reg |= MCLK_AHBMASK_USB;
 
@@ -84,6 +92,28 @@ void TinyUSB_Port_InitDevice(uint8_t rhport) {
   NVIC_SetPriority(USB_1_IRQn, 0UL);
   NVIC_SetPriority(USB_2_IRQn, 0UL);
   NVIC_SetPriority(USB_3_IRQn, 0UL);
+#elif defined(__SAME53__) || defined(__SAME54__)
+  MCLK_REGS->MCLK_APBBMASK |= MCLK_APBBMASK_USB_Msk;
+  MCLK_REGS->MCLK_AHBMASK |= MCLK_AHBMASK_USB_Msk;
+
+  PORT_REGS->GROUP[0].PORT_PINCFG[PIN_PA24H_USB_DM] |= PORT_PINCFG_PMUXEN_Msk;
+  PORT_REGS->GROUP[0].PORT_PMUX[PIN_PA24H_USB_DM / 2] =
+      (PORT_REGS->GROUP[0].PORT_PMUX[PIN_PA24H_USB_DM / 2] &
+       ~(0xFu << (4u * (PIN_PA24H_USB_DM & 1u)))) |
+      (MUX_PA24H_USB_DM << (4u * (PIN_PA24H_USB_DM & 1u)));
+  PORT_REGS->GROUP[0].PORT_PINCFG[PIN_PA25H_USB_DP] |= PORT_PINCFG_PMUXEN_Msk;
+  PORT_REGS->GROUP[0].PORT_PMUX[PIN_PA25H_USB_DP / 2] =
+      (PORT_REGS->GROUP[0].PORT_PMUX[PIN_PA25H_USB_DP / 2] &
+       ~(0xFu << (4u * (PIN_PA25H_USB_DP & 1u)))) |
+      (MUX_PA25H_USB_DP << (4u * (PIN_PA25H_USB_DP & 1u)));
+
+  GCLK_REGS->GCLK_PCHCTRL[USB_GCLK_ID] =
+      GCLK_PCHCTRL_GEN_GCLK1 | GCLK_PCHCTRL_CHEN_Msk;
+
+  NVIC_SetPriority(USB_OTHER_IRQn, 0UL);
+  NVIC_SetPriority(USB_SOF_HSOF_IRQn, 0UL);
+  NVIC_SetPriority(USB_TRCPT0_IRQn, 0UL);
+  NVIC_SetPriority(USB_TRCPT1_IRQn, 0UL);
 #else
   PM->APBBMASK.reg |= PM_APBBMASK_USB;
 
@@ -126,7 +156,7 @@ void TinyUSB_Port_EnterDFU(void) {
 }
 
 uint8_t TinyUSB_Port_GetSerialNumber(uint8_t serial_id[16]) {
-#ifdef __SAMD51__
+#if defined(__SAMD51__) || defined(__SAME51__) || defined(__SAME53__) || defined(__SAME54__)
   uint32_t *id_addresses[4] = {(uint32_t *)0x008061FC, (uint32_t *)0x00806010,
                                (uint32_t *)0x00806014, (uint32_t *)0x00806018};
 #else // samd21
