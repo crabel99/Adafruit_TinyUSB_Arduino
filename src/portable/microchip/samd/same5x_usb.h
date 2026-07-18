@@ -28,7 +28,6 @@
 #if defined(__GNUC__)
 #pragma GCC system_header
 #endif
-
 #include "tusb_option.h"
 
 #if TU_CHECK_MCU(OPT_MCU_SAME5X)

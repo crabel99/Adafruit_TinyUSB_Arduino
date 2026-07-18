@@ -366,9 +366,12 @@ static void maybe_transfer_complete(void) {
       UsbDeviceDescBank* bank = &sram_registers[epnum][TUSB_DIR_IN];
       uint16_t const total_transfer_size = bank->PCKSIZE.bit.BYTE_COUNT;
 
-      dcd_event_xfer_complete(0, epnum | TUSB_DIR_IN_MASK, total_transfer_size, XFER_RESULT_SUCCESS, true);
-
+      // SAME5x exposes transfer completion through split IRQ vectors. Clear
+      // the hardware source before publishing the software event so another
+      // pending USB vector cannot report the same bank completion twice.
       ep->EPINTFLAG.reg = USB_DEVICE_EPINTFLAG_TRCPT1;
+
+      dcd_event_xfer_complete(0, epnum | TUSB_DIR_IN_MASK, total_transfer_size, XFER_RESULT_SUCCESS, true);
     }
 
     // Handle OUT completions
@@ -376,9 +379,11 @@ static void maybe_transfer_complete(void) {
       UsbDeviceDescBank* bank = &sram_registers[epnum][TUSB_DIR_OUT];
       uint16_t const total_transfer_size = bank->PCKSIZE.bit.BYTE_COUNT;
 
-      dcd_event_xfer_complete(0, epnum, total_transfer_size, XFER_RESULT_SUCCESS, true);
-
+      // See the IN path above. OUT direct transfers rely on exactly one
+      // completion to retire direct_rx_active and return the caller buffer.
       ep->EPINTFLAG.reg = USB_DEVICE_EPINTFLAG_TRCPT0;
+
+      dcd_event_xfer_complete(0, epnum, total_transfer_size, XFER_RESULT_SUCCESS, true);
     }
   }
 }
