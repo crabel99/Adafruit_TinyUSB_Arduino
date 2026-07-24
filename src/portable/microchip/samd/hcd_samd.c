@@ -30,7 +30,7 @@
     TU_CHECK_MCU(OPT_MCU_SAMD11, OPT_MCU_SAMD21, OPT_MCU_SAML2X, OPT_MCU_SAMD51, OPT_MCU_SAME5X)
 
 #include "host/hcd.h"
-#include "sam.h"
+#include <sam.h>
 #include "same5x_usb.h"
 
 /*------------------------------------------------------------------*/
