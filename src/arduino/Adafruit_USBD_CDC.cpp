@@ -268,7 +268,8 @@ extern "C" {
 
 // Optional application observer. The Arduino CDC wrapper retains ownership of
 // tud_cdc_line_state_cb() so 1200-baud bootloader touch remains intact.
-__attribute__((weak)) void tud_cdc_line_state_app_cb(uint8_t instance, bool dtr, bool rts) {
+__attribute__((weak)) void tud_cdc_line_state_app_cb(uint8_t instance, bool dtr,
+                                                     bool rts) {
   (void)instance;
   (void)dtr;
   (void)rts;
