@@ -250,11 +250,19 @@ bool dcd_edpt_open (uint8_t rhport, tusb_desc_endpoint_t const * desc_edpt)
 
   if ( dir == TUSB_DIR_OUT )
   {
+    // Bus reset disables EPTYPE without retiring a bank armed by masked CPU
+    // code. Hold that bank before enabling the endpoint with its old address.
+    if (ep->EPCFG.bit.EPTYPE0 == 0) {
+      ep->EPSTATUSSET.reg = USB_DEVICE_EPSTATUSSET_BK0RDY;
+    }
     ep->EPCFG.bit.EPTYPE0 = desc_edpt->bmAttributes.xfer + 1;
     ep->EPSTATUSCLR.reg = USB_DEVICE_EPSTATUSCLR_STALLRQ0 | USB_DEVICE_EPSTATUSCLR_DTGLOUT; // clear stall & dtoggle
     ep->EPINTENSET.bit.TRCPT0 = true;
   }else
   {
+    if (ep->EPCFG.bit.EPTYPE1 == 0) {
+      ep->EPSTATUSCLR.reg = USB_DEVICE_EPSTATUSCLR_BK1RDY;
+    }
     ep->EPCFG.bit.EPTYPE1 = desc_edpt->bmAttributes.xfer + 1;
     ep->EPSTATUSCLR.reg = USB_DEVICE_EPSTATUSCLR_STALLRQ1 | USB_DEVICE_EPSTATUSCLR_DTGLIN; // clear stall & dtoggle
     ep->EPINTENSET.bit.TRCPT1 = true;

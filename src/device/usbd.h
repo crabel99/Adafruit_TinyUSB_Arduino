@@ -149,6 +149,9 @@ bool tud_control_xfer(uint8_t rhport, tusb_control_request_t const * request, vo
 // Send STATUS (zero length) packet
 bool tud_control_status(uint8_t rhport, tusb_control_request_t const * request);
 
+// Bytes transferred in the current control DATA stage, including a short packet.
+uint16_t tud_control_xfer_bytes(void);
+
 //--------------------------------------------------------------------+
 // Application Callbacks
 //--------------------------------------------------------------------+
