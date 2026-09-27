@@ -155,6 +155,12 @@ private:
                                                   uint16_t langid);
 };
 
+// If defined, called by begin() after descriptors are reset and before USB
+// hardware initialization. Return false to abort initialization. When
+// undefined, CDC is configured.
+bool TinyUSB_Device_Configure(Adafruit_USBD_Device &device)
+    __attribute__((weak));
+
 extern Adafruit_USBD_Device TinyUSBDevice;
 
 // USBDevice has a high chance to conflict with other usb stack
