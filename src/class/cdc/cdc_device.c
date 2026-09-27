@@ -58,8 +58,10 @@ typedef struct {
 
   bool direct_mode;
   bool direct_tx_active;
+  bool direct_tx_zlp;
   bool direct_rx_active;
   const void* direct_tx_buffer;
+  uint32_t direct_tx_bytes;
   void* direct_rx_buffer;
 
   uint8_t tx_ff_buf[CFG_TUD_CDC_TX_BUFSIZE];
@@ -226,7 +228,9 @@ bool tud_cdc_n_direct_write(uint8_t itf, const void* buffer, uint32_t length) {
   TU_VERIFY(usbd_edpt_claim(p_cdc->rhport, p_cdc->tx_stream.ep_addr));
 
   p_cdc->direct_tx_active = true;
+  p_cdc->direct_tx_zlp = false;
   p_cdc->direct_tx_buffer = buffer;
+  p_cdc->direct_tx_bytes = 0;
   if (!usbd_edpt_xfer(p_cdc->rhport, p_cdc->tx_stream.ep_addr, (uint8_t*)(uintptr_t)buffer,
                       (uint16_t) length, false)) {
     // usbd_edpt_xfer() clears BUSY and CLAIMED when the DCD rejects submission.
@@ -370,8 +374,10 @@ void cdcd_reset(uint8_t rhport) {
     tu_memclr(p_cdc, ITF_MEM_RESET_SIZE);
 
     p_cdc->direct_tx_active = false;
+    p_cdc->direct_tx_zlp = false;
     p_cdc->direct_rx_active = false;
     p_cdc->direct_tx_buffer = NULL;
+    p_cdc->direct_tx_bytes = 0;
     p_cdc->direct_rx_buffer = NULL;
 
     tu_fifo_set_overwritable(&p_cdc->tx_stream.ff, CFG_TUD_CDC_TX_OVERWRITABLE_IF_NOT_CONNECTED); // back to default
@@ -616,10 +622,22 @@ bool cdcd_xfer_cb(uint8_t rhport, uint8_t ep_addr, xfer_result_t result, uint32_
   if (ep_addr == stream_tx->ep_addr) {
     if (p_cdc->direct_mode) {
       TU_ASSERT(p_cdc->direct_tx_active);
+      if (!p_cdc->direct_tx_zlp && result == XFER_RESULT_SUCCESS && xferred_bytes > 0 &&
+          (xferred_bytes % stream_tx->mps) == 0) {
+        p_cdc->direct_tx_zlp = true;
+        p_cdc->direct_tx_bytes = xferred_bytes;
+        if (tu_edpt_stream_write_zlp_if_needed(stream_tx, xferred_bytes)) {
+          return true;
+        }
+        result = XFER_RESULT_FAILED;
+      }
       const void* buffer = p_cdc->direct_tx_buffer;
+      const uint32_t completed_bytes = p_cdc->direct_tx_zlp ? p_cdc->direct_tx_bytes : xferred_bytes;
       p_cdc->direct_tx_active = false;
+      p_cdc->direct_tx_zlp = false;
       p_cdc->direct_tx_buffer = NULL;
-      tud_cdc_direct_tx_complete_cb(itf, buffer, xferred_bytes, result);
+      p_cdc->direct_tx_bytes = 0;
+      tud_cdc_direct_tx_complete_cb(itf, buffer, completed_bytes, result);
       return true;
     }
 
