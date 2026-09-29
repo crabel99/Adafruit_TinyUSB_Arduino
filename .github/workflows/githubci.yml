@@ -16,6 +16,9 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Test SAMD configuration
+      run: python3 tests/samd_configuration/run.py
+
     - name: Run pre-commit
       uses: pre-commit/action@v3.0.1
 

@@ -59,8 +59,12 @@ extern "C" {
 #define CFG_TUD_ENABLED 1
 
 // Enable host stack with MAX3421E (host shield)
+#ifndef CFG_TUH_ENABLED
 #define CFG_TUH_ENABLED 1
+#endif
+#ifndef CFG_TUH_MAX3421
 #define CFG_TUH_MAX3421 1
+#endif
 
 //--------------------------------------------------------------------
 // DEVICE CONFIGURATION
