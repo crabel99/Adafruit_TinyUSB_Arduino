@@ -232,35 +232,43 @@ bool Adafruit_USBD_Device::addInterface(Adafruit_USBD_Interface &itf) {
 bool Adafruit_USBD_Device::begin(uint8_t rhport) {
   clearConfiguration();
 
-  // Serial is always added by default
-  // Use Interface Association Descriptor (IAD) for CDC
-  // As required by USB Specs IAD's subclass must be common class (2) and
-  // protocol must be IAD (1)
-  _desc_device.bDeviceClass = TUSB_CLASS_MISC;
-  _desc_device.bDeviceSubClass = MISC_SUBCLASS_COMMON;
-  _desc_device.bDeviceProtocol = MISC_PROTOCOL_IAD;
+  if (TinyUSB_Device_Configure) {
+    if (!TinyUSB_Device_Configure(*this)) {
+      return false;
+    }
+  } else {
+    // Serial is always added by default
+    // Use Interface Association Descriptor (IAD) for CDC
+    // As required by USB Specs IAD's subclass must be common class (2) and
+    // protocol must be IAD (1)
+    _desc_device.bDeviceClass = TUSB_CLASS_MISC;
+    _desc_device.bDeviceSubClass = MISC_SUBCLASS_COMMON;
+    _desc_device.bDeviceProtocol = MISC_PROTOCOL_IAD;
 
 #if defined(ARDUINO_ARCH_ESP32)
 #if ARDUINO_USB_CDC_ON_BOOT && !ARDUINO_USB_MODE
-  // follow USBCDC cdc descriptor
-  uint8_t itfnum = allocInterface(2);
-  uint8_t strid = addStringDescriptor("TinyUSB Serial");
-  uint16_t const mps =
-      (TUD_OPT_HIGH_SPEED ? 512 : 64); // TODO actual link speed
-  uint8_t const desc_cdc[TUD_CDC_DESC_LEN] = {
-      TUD_CDC_DESCRIPTOR(itfnum, strid, 0x85, 64, 0x03, 0x84, mps)};
+    // follow USBCDC cdc descriptor
+    uint8_t itfnum = allocInterface(2);
+    uint8_t strid = addStringDescriptor("TinyUSB Serial");
+    uint16_t const mps =
+        (TUD_OPT_HIGH_SPEED ? 512 : 64); // TODO actual link speed
+    uint8_t const desc_cdc[TUD_CDC_DESC_LEN] = {
+        TUD_CDC_DESCRIPTOR(itfnum, strid, 0x85, 64, 0x03, 0x84, mps)};
 
-  memcpy(_desc_cfg + _desc_cfg_len, desc_cdc, sizeof(desc_cdc));
-  _desc_cfg_len += sizeof(desc_cdc);
+    memcpy(_desc_cfg + _desc_cfg_len, desc_cdc, sizeof(desc_cdc));
+    _desc_cfg_len += sizeof(desc_cdc);
 
-  // Update configuration descriptor
-  tusb_desc_configuration_t *config = (tusb_desc_configuration_t *)_desc_cfg;
-  config->wTotalLength = _desc_cfg_len;
-  config->bNumInterfaces = _itf_count;
+    // Update configuration descriptor
+    tusb_desc_configuration_t *config = (tusb_desc_configuration_t *)_desc_cfg;
+    config->wTotalLength = _desc_cfg_len;
+    config->bNumInterfaces = _itf_count;
 #endif
 #else
-  SerialTinyUSB.begin(115200);
+    SerialTinyUSB.begin(115200);
+#endif
+  }
 
+#if !defined(ARDUINO_ARCH_ESP32)
   // Init device hardware and call tusb_init()
   TinyUSB_Port_InitDevice(rhport);
 #endif

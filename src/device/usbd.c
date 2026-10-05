@@ -856,6 +856,10 @@ bool tud_control_status(uint8_t rhport, const tusb_control_request_t* request) {
   return status_stage_xact(rhport, status_stage_ep(&_usbd_dev.ctrl_xfer.request));
 }
 
+uint16_t tud_control_xfer_bytes(void) {
+  return _usbd_dev.ctrl_xfer.total_xferred;
+}
+
 // Transmit data to/from the control endpoint. If wLength is zero, a status packet is sent instead.
 bool tud_control_xfer(uint8_t rhport, const tusb_control_request_t* request, void* buffer, uint16_t len) {
   // _usbd_dev.ctrl_xfer.request and reset fields are pre-initialized at process_setup_received entry
@@ -879,8 +883,13 @@ bool tud_control_xfer(uint8_t rhport, const tusb_control_request_t* request, voi
 
 // Callback when a transaction completes on the DATA stage or Status stage of EP0
 static bool usbd_control_xfer_cb(uint8_t rhport, uint8_t ep_addr, xfer_result_t result, uint32_t xferred_bytes) {
-  (void) result;
   usbd_control_xfer_t* const ctrl_xfer = &_usbd_dev.ctrl_xfer;
+  if (result != XFER_RESULT_SUCCESS) {
+    ctrl_xfer->complete_cb = NULL;
+    dcd_edpt_stall(rhport, TU_EP0_OUT);
+    dcd_edpt_stall(rhport, TU_EP0_IN);
+    return false;
+  }
 
   // Status Stage complete: ep_addr matches the resolved Status stage endpoint
   uint8_t const ep_status = status_stage_ep(&ctrl_xfer->request);
